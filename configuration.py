@@ -52,9 +52,32 @@ flags.DEFINE_integer(name='batchsize',
                      default=1,
                      help='Batch size')
 flags.DEFINE_integer(name='num_epochs',
-                     default=16,
+                     default=256,
                      help='Number of epochs')
 
+
+# Data augmentation
+
+flags.DEFINE_float(name='brightness_offset_min',
+                     default=-64,
+                     help='Minimum value for brightness offset')
+flags.DEFINE_float(name='brightness_offset_max',
+                     default=64,
+                     help='Maximum value for brightness offset')
+
+flags.DEFINE_float(name='desaturate_red_min',
+                     default=1,
+                     help='Minimum value to divide red channel')
+flags.DEFINE_float(name='desaturate_red_max',
+                     default=128,
+                     help='Maximum value to divide red channel')
+
+flags.DEFINE_float(name='contrast_min',
+                     default=1,
+                     help='Minimum value of contrast reduction')
+flags.DEFINE_float(name='contrast_max',
+                     default=2,
+                     help='Maximum value of contrast reduction')
 
 FLAGS = flags.FLAGS
 
@@ -80,3 +103,8 @@ def customize_configuration():
     output_path = FLAGS.output_path
     if not os.path.exists(output_path):
         os.makedirs(output_path)
+    else:
+        for elem in os.listdir(output_path):
+            os.remove(os.path.join(output_path, elem))
+
+

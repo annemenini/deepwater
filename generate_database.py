@@ -55,6 +55,8 @@ def generate_tfrecords(case_list):
         tfrecords_path = case[1]
         image = scipy.misc.imread(source_path)
         image = image.astype(np.float32)
+        print('maxi:')
+        print(np.max(image))
 
         shape = image.shape
 

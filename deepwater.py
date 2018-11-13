@@ -8,6 +8,38 @@ import configuration
 FLAGS = tf.flags.FLAGS
 
 
+def reduce_contrast(image):
+    ratio = tf.random_uniform([], FLAGS.contrast_min, FLAGS.contrast_max, dtype=tf.float32)
+    image = 128.0 + (1.0 / ratio) * (image - 128.0)
+    return image
+
+
+def change_brightness(image):
+    offset = tf.random_uniform([], FLAGS.brightness_offset_min, FLAGS.brightness_offset_max, dtype=tf.float32)
+    image += offset
+    image = tf.minimum(image, 255.0)
+    image = tf.maximum(image, 0.0)
+    return image
+
+
+def desaturate_red(image):
+    shape = tf.shape(image)
+    red = tf.slice(image, begin=[0, 0, 0], size=[shape[0], shape[1], 1])
+    green = tf.slice(image, begin=[0, 0, 1], size=[shape[0], shape[1], 1])
+    blue = tf.slice(image, begin=[0, 0, 2], size=[shape[0], shape[1], 1])
+    ratio = tf.random_uniform([], FLAGS.desaturate_red_min, FLAGS.desaturate_red_max, dtype=tf.float32)
+    red /= ratio
+    image = tf.concat([red, green, blue], axis=2)
+    return image
+
+
+def augment(image):
+    image = reduce_contrast(image)
+    image = change_brightness(image)
+    image = desaturate_red(image)
+    return image
+
+
 def process_tfrecords(case):
     features = tf.parse_single_example(case,
                                        features={
@@ -24,6 +56,8 @@ def process_tfrecords(case):
     image = tf.reshape(record_bytes, shape)
     record_bytes = tf.decode_raw(features['reference'], tf.float32)
     reference = tf.reshape(record_bytes, shape)
+
+    image = augment(image)
 
     return image, reference
 
@@ -51,31 +85,12 @@ def cnn(input_image):
     # Input Layer
     input_layer = tf.expand_dims(input_image, axis=0)
 
-    # Convolutional Layer #1
-    conv1 = tf.layers.conv2d(
-        inputs=input_layer,
-        filters=32,
-        kernel_size=[5, 5],
-        padding="same",
-        activation=tf.nn.relu)
+    conv = tf.layers.conv2d(inputs=input_layer, filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    conv = tf.layers.conv2d(inputs=conv, filters=3, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
 
-    # Convolutional Layer #2
-    conv2 = tf.layers.conv2d(
-        inputs=conv1,
-        filters=64,
-        kernel_size=[5, 5],
-        padding="same",
-        activation=tf.nn.relu)
-
-    # Convolutional Layer #3
-    conv3 = tf.layers.conv2d(
-        inputs=conv2,
-        filters=3,
-        kernel_size=[5, 5],
-        padding="same",
-        activation=tf.nn.relu)
-
-    return conv3
+    return conv
 
 
 def loss_fn(image, reference):
@@ -97,7 +112,7 @@ def model_fn(features, labels, mode, params=None, config=None):
     loss = loss_fn(output_image, labels)
 
     # Compute evaluation metrics.
-    concat = tf.concat([tf.expand_dims(input_image, axis=0), output_image, tf.expand_dims(labels, axis=0)], axis=2)
+    concat = tf.concat([tf.expand_dims(input_image, axis=0), output_image, tf.expand_dims(labels, axis=0)], axis=1)
     tf.summary.image('concat', concat)
 
     if mode == tf.estimator.ModeKeys.EVAL:
@@ -106,7 +121,7 @@ def model_fn(features, labels, mode, params=None, config=None):
     # Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
 
-    optimizer = tf.train.AdagradOptimizer(learning_rate=0.01)
+    optimizer = tf.train.AdagradOptimizer(learning_rate=0.0001)
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
