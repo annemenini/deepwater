@@ -60,6 +60,9 @@ db.sqlite3
 instance/
 .webassets-cache
 
+# IntelliJ
+.idea
+
 # Scrapy stuff:
 .scrapy
 
