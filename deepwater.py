@@ -97,8 +97,8 @@ def model_fn(features, labels, mode, params=None, config=None):
     loss = loss_fn(output_image, labels)
 
     # Compute evaluation metrics.
-    metrics = {'loss': loss}
-    tf.summary.scalar('loss', loss)
+    concat = tf.concat([tf.expand_dims(input_image, axis=0), output_image, tf.expand_dims(labels, axis=0)], axis=2)
+    tf.summary.image('concat', concat)
 
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode, loss=loss)
@@ -106,7 +106,7 @@ def model_fn(features, labels, mode, params=None, config=None):
     # Create training op.
     assert mode == tf.estimator.ModeKeys.TRAIN
 
-    optimizer = tf.train.AdagradOptimizer(learning_rate=0.1)
+    optimizer = tf.train.AdagradOptimizer(learning_rate=0.01)
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op)
 
@@ -150,9 +150,8 @@ def main(argv=None):
     # Build model
     enhancer = tf.estimator.Estimator(
         model_fn=model_fn,
-        params={
-            'feature_columns': my_feature_columns,
-        }
+        params={'feature_columns': my_feature_columns},
+        model_dir=FLAGS.output_path
     )
 
     if FLAGS.mode == 'train':

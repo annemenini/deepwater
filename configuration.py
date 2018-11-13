@@ -52,7 +52,7 @@ flags.DEFINE_integer(name='batchsize',
                      default=1,
                      help='Batch size')
 flags.DEFINE_integer(name='num_epochs',
-                     default=1,
+                     default=16,
                      help='Number of epochs')
 
 
@@ -77,3 +77,6 @@ def customize_configuration():
         print('\t' + str(exc))
         print('The CLI/default configurations will be used.')
 
+    output_path = FLAGS.output_path
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
