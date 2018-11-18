@@ -1,56 +1,20 @@
-import json
 import os
 
+import numpy as np
 import scipy
 import tensorflow as tf
 
-
-flags = tf.flags
-
-# Inputs
-
-flags.DEFINE_string(name='input_path',
-                    default='input',
-                    help='Location of the inputs (e.g. config files)')
-flags.DEFINE_string(name='config_file',
-                    default='configuration.json',
-                    help='Name of the config file to be found in the input folder')
-
-# Data base
-
-flags.DEFINE_string(name='database_source_path',
-                    default='source',
-                    help='Location of the source images (e.g. .png, .jpg)')
-flags.DEFINE_string(name='database_tfrecords_path',
-                    default='tfrecords',
-                    help='Location where to store the generated .tfrecords')
+import configuration
 
 
-FLAGS = flags.FLAGS
-
-
-def customize_configuration():
-    input_path = FLAGS.input_path
-    config_file = FLAGS.config_file
-    config_path = os.path.join(input_path, config_file)
-
-    try:
-        with open(config_path, 'r') as json_file:
-            data = json.load(json_file)
-            for key in FLAGS.flag_values_dict():
-                if key in data:
-                    FLAGS.key = data[key]
-                else:
-                    print('Key ' + key + ' not found. Using default value ' + FLAGS.key)
-    except:
-        print('Warning, the configuration file provided is invalid: ' + config_path)
-        print(ValueError)
-        print('The CLI/default configurations will be used.')
+FLAGS = tf.flags.FLAGS
 
 
 def parse_database():
     source_path = FLAGS.database_source_path
-    tfrecords_path = FLAGS.database_tfrecords_path
+    tfrecords_path = FLAGS.database_path
+    if not os.path.exists(tfrecords_path):
+        os.makedirs(tfrecords_path)
 
     expected_types = ['train', 'validation', 'test']
     supported_extensions = ['.jpeg', '.jpg', '.png']
@@ -77,6 +41,10 @@ def parse_database():
     return case_list
 
 
+def _int64_feature(value):
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=[value]))
+
+
 def _bytes_feature(value):
     return tf.train.Feature(bytes_list=tf.train.BytesList(value=[value]))
 
@@ -86,16 +54,24 @@ def generate_tfrecords(case_list):
         source_path = case[0]
         tfrecords_path = case[1]
         image = scipy.misc.imread(source_path)
+        image = image.astype(np.float32)
+        print('maxi:')
+        print(np.max(image))
 
-        tf_record = tf.train.Example(features=tf.train.Features(feature={'reference': _bytes_feature(image.tostring())}
-                                                                ))
+        shape = image.shape
+
+        tf_record = tf.train.Example(features=tf.train.Features(feature={
+            'dim_x': _int64_feature(shape[0]),
+            'dim_y': _int64_feature(shape[1]),
+            'input': _bytes_feature(image.tostring()),
+            'reference': _bytes_feature(image.tostring())}))
         tf_writer = tf.python_io.TFRecordWriter(tfrecords_path)
         tf_writer.write(tf_record.SerializeToString())
         tf_writer.close()
 
 
 def main(argv=None):
-    customize_configuration()
+    configuration.customize_configuration()
     case_list = parse_database()
     generate_tfrecords(case_list)
 
