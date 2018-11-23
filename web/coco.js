@@ -14,7 +14,6 @@
  * limitations under the License.
  * =============================================================================
  */
-import "babel-polyfill";
 import * as posenet from '@tensorflow-models/posenet';
 import * as tf from '@tensorflow/tfjs';
 import dat from 'dat.gui';
