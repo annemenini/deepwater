@@ -54,29 +54,42 @@ flags.DEFINE_integer(name='batchsize',
 flags.DEFINE_integer(name='num_epochs',
                      default=256,
                      help='Number of epochs')
+flags.DEFINE_float(name='learning_rate',
+                   default=0.00001,
+                   help='Learning rate')
 
 
 # Data augmentation
 
 flags.DEFINE_float(name='brightness_offset_min',
-                     default=-64,
-                     help='Minimum value for brightness offset')
+                   default=5,
+                   help='Minimum value for brightness offset')
 flags.DEFINE_float(name='brightness_offset_max',
-                     default=64,
-                     help='Maximum value for brightness offset')
+                   default=14,
+                   help='Maximum value for brightness offset')
 
 flags.DEFINE_float(name='desaturate_red_min',
-                     default=1,
-                     help='Minimum value to divide red channel')
+                   default=1.8,
+                   help='Minimum value to divide red channel')
 flags.DEFINE_float(name='desaturate_red_max',
-                     default=128,
-                     help='Maximum value to divide red channel')
+                   default=2.2,
+                   help='Maximum value to divide red channel')
 
 flags.DEFINE_float(name='contrast_min',
-                     default=1,
-                     help='Minimum value of contrast reduction')
+                   default=1.8,
+                   help='Minimum value of contrast reduction')
 flags.DEFINE_float(name='contrast_max',
-                     default=2,
+                   default=2.2,
+                   help='Maximum value of contrast reduction')
+
+flags.DEFINE_bool(name='resize_with_fixed_size',
+                  default=False,
+                  help='Use a fixed resizing size (of size resize_max)')
+flags.DEFINE_integer(name='resize_min',
+                     default=256,
+                     help='Minimum value of contrast reduction')
+flags.DEFINE_integer(name='resize_max',
+                     default=1024,
                      help='Maximum value of contrast reduction')
 
 FLAGS = flags.FLAGS
