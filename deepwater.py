@@ -1,5 +1,6 @@
 import os
 
+import scipy
 import tensorflow as tf
 
 import unet.unet_nn
@@ -62,13 +63,18 @@ feature_spec = {'dim_x': tf.FixedLenFeature([], tf.int64),
 
 
 def process_tfrecords(case):
-    features = tf.parse_single_example(case, features=feature_spec)
+    # features = tf.parse_single_example(case, features=feature_spec)
+    case = tf.expand_dims(case, axis=0)
+    features = tf.parse_example(case, features=feature_spec)
 
     dim_x = tf.cast(features['dim_x'], dtype=tf.int32)
+    dim_x = tf.squeeze(dim_x, axis=0)  # TODO remove when batchsize > 1
     dim_y = tf.cast(features['dim_y'], dtype=tf.int32)
+    dim_y = tf.squeeze(dim_y, axis=0)  # TODO remove when batchsize > 1
     shape = [dim_x, dim_y, 3]
 
     record_bytes = tf.decode_raw(features['input'], tf.float32)
+    record_bytes = tf.squeeze(record_bytes, axis=0)  # TODO remove when batchsize > 1
     image = tf.reshape(record_bytes, shape)
     record_bytes = tf.decode_raw(features['reference'], tf.float32)
     reference = tf.reshape(record_bytes, shape)
@@ -83,19 +89,44 @@ def process_tfrecords(case):
     return feature, label
 
 
+def process_images(case):
+    image_string = tf.read_file(case)
+    image = tf.image.decode_jpeg(image_string, channels=3)
+
+    reference = image
+    image, reference = resize(image, reference)
+    image = augment(image)
+    feature = {"degraded": image}
+    label = reference
+    return feature, label
+
+
+def process_placeholder(placeholder):
+    feature = {"degraded": placeholder}
+    return feature
+
+
 def get_dataset(mode='train'):
     mode_path = os.path.join(FLAGS.database_path, mode)
-    pattern = os.path.join(mode_path, '*.tfrecords')
-    case_list = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
-    dataset = tf.data.TFRecordDataset(case_list)
-    dataset = dataset.map(process_tfrecords, num_parallel_calls=FLAGS.num_threads)
+    if FLAGS.use_tfrecords:
+        pattern = os.path.join(mode_path, '*.tfrecords')
+        case_list = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
+        dataset = tf.data.TFRecordDataset(case_list)
+        dataset = dataset.map(process_tfrecords, num_parallel_calls=FLAGS.num_threads)
+    else:
+        pattern = os.path.join(mode_path, '*.*')
+        dataset = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
+        dataset = dataset.map(process_images, num_parallel_calls=FLAGS.num_threads)
     dataset.batch(FLAGS.batchsize)
     if mode == 'train':
         repeat = 1
     else:
         # TODO: Understand why the eval only appear towards the end only every 3000 subrun
         repeat = int(39 / 9)
-    dataset = dataset.repeat(FLAGS.num_epochs * repeat)
+    if FLAGS.mode == 'train':
+        dataset = dataset.repeat(FLAGS.num_epochs * repeat)
+    else:
+        dataset = dataset.repeat(1)
     return dataset
 
 
@@ -131,13 +162,13 @@ def fcnn(input_image):
     tf.summary.scalar('contrast', layer[0, 2])
 
     # Red saturation
-    output_image_R = (layer[:, 0]) * input_image[:, :, :, 0]
-    output_image_G = input_image[:, :, :, 1]
-    output_image_B = input_image[:, :, :, 2]
-    output_image_R = tf.expand_dims(output_image_R, axis=3)
-    output_image_G = tf.expand_dims(output_image_G, axis=3)
-    output_image_B = tf.expand_dims(output_image_B, axis=3)
-    output_image = tf.concat([output_image_R, output_image_G, output_image_B], axis=3)
+    output_image_r = (layer[:, 0]) * input_image[:, :, :, 0]
+    output_image_g = input_image[:, :, :, 1]
+    output_image_b = input_image[:, :, :, 2]
+    output_image_r = tf.expand_dims(output_image_r, axis=3)
+    output_image_g = tf.expand_dims(output_image_g, axis=3)
+    output_image_b = tf.expand_dims(output_image_b, axis=3)
+    output_image = tf.concat([output_image_r, output_image_g, output_image_b], axis=3)
 
     # Brightness
     output_image = output_image - (layer[:, 1])
@@ -150,14 +181,14 @@ def fcnn(input_image):
 
 def cnn(input_image):
 
-    conv = tf.layers.conv2d(inputs=input_image, filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
-    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
-    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
-    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
-    conv = tf.layers.conv2d(inputs=conv, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
-    conv = tf.layers.conv2d(inputs=conv, filters=3, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=input_image, filters=32, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=layer, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=layer, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=layer, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=layer, filters=64, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
+    layer = tf.layers.conv2d(inputs=layer, filters=3, kernel_size=[5, 5], padding="same", activation=tf.nn.relu)
 
-    return conv
+    return layer
 
 
 def loss_fn(image, reference):
@@ -178,7 +209,8 @@ def model_fn(features, labels, mode, params=None, config=None):
 
     output_image = fcnn(input_image1)
     # output_image = cnn(input_image1)
-    # output_image, _, _ = unet.unet_nn.create_conv_net(input_image, 1, 3, 3, layers=3, features_root=16, filter_size=3, pool_size=2,
+    # output_image, _, _ = unet.unet_nn.create_conv_net(input_image, 1, 3, 3, layers=3, features_root=16, filter_size=3,
+    # pool_size=2,
     #                 summaries=True)
 
     output_image = tf.multiply(output_image, 255.0)
@@ -215,7 +247,10 @@ def serving_input_receiver_fn():
     serialized_tf_example = tf.placeholder(dtype=tf.string, shape=None,
                                            name='input_example_tensor')
     receiver_tensors = {'examples': serialized_tf_example}
-    features, _ = process_tfrecords(serialized_tf_example)
+    if FLAGS.use_tfrecords:
+        features, _ = process_tfrecords(serialized_tf_example)
+    else:
+        features, _ = process_images(serialized_tf_example)
     return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
 
 
@@ -230,7 +265,11 @@ def train_and_evaluate(enhancer):
     saved_model_path = os.path.join(FLAGS.output_path, 'saved_model')
     if not os.path.exists(saved_model_path):
         os.makedirs(saved_model_path)
-    enhancer.export_savedmodel(saved_model_path, serving_input_receiver_fn)
+    # enhancer.export_savedmodel(saved_model_path, serving_input_receiver_fn)
+    enhancer.export_saved_model(saved_model_path, tf.estimator.export.build_raw_serving_input_receiver_fn(
+        features={'degraded': tf.placeholder(dtype=tf.float32,
+                                             shape=[None, None, 3],
+                                             name='degraded')}))
 
     return eval_result
 
@@ -247,7 +286,7 @@ def train(enhancer):
     saved_model_path = os.path.join(FLAGS.output_path, 'saved_model')
     if not os.path.exists(saved_model_path):
         os.makedirs(saved_model_path)
-    enhancer.export_savedmodel(saved_model_path, serving_input_receiver_fn)
+    enhancer.export_saved_model(saved_model_path, serving_input_receiver_fn)
 
     return eval_result
 
@@ -256,8 +295,7 @@ def test(enhancer):
 
     # Test
     test_dataset = get_dataset(mode='test')
-    test_result = enhancer.evaluate(input_fn=lambda: input_fn(test_dataset),
-                                    checkpoint_path=None)  # TODO
+    test_result = enhancer.evaluate(input_fn=lambda: input_fn(test_dataset))
 
     return test_result
 
@@ -265,10 +303,9 @@ def test(enhancer):
 def predict(enhancer):
     # Test
     prediction_dataset = get_dataset(mode='prediction')
-    output = enhancer.predict(input_fn=lambda: input_fn(prediction_dataset),
-                              checkpoint_path=None)  # TODO
+    output = enhancer.predict(input_fn=lambda: input_fn(prediction_dataset))
 
-    #TODO save output
+    # TODO save output
 
 
 def main(argv=None):

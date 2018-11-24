@@ -15,6 +15,10 @@ flags.DEFINE_string(name='mode',
 
 # Inputs
 
+
+flags.DEFINE_bool(name='use_tfrecords',
+                  default=False,
+                  help='If true, use tfrecords inputs, if false, use images')
 flags.DEFINE_string(name='input_path',
                     default='input',
                     help='Location of the inputs (e.g. config files)')
@@ -27,9 +31,12 @@ flags.DEFINE_string(name='config_file',
 flags.DEFINE_string(name='database_source_path',
                     default='database\\source',
                     help='Location of the source images (e.g. .png, .jpg)')
+# flags.DEFINE_string(name='database_path',
+#                     default='\\Users\\stere\\Documents\\deepwater\\database\\tfrecords',
+#                     help='Location of the database (.tfrecords)')
 flags.DEFINE_string(name='database_path',
-                    default='database\\tfrecords',
-                    help='Location of the database (.tfrecords)')
+                    default='\\Users\\stere\\Documents\\deepwater\\database\\source\\good',
+                    help='Location of the database (.jpeg, .jpg, .png, )')
 
 # Outputs
 
@@ -52,7 +59,7 @@ flags.DEFINE_integer(name='batchsize',
                      default=1,
                      help='Batch size')
 flags.DEFINE_integer(name='num_epochs',
-                     default=256,
+                     default=32,
                      help='Number of epochs')
 flags.DEFINE_float(name='learning_rate',
                    default=0.00001,
@@ -117,7 +124,8 @@ def customize_configuration():
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     else:
-        for elem in os.listdir(output_path):
-            os.remove(os.path.join(output_path, elem))
+        print(FLAGS.mode)
+        if FLAGS.mode == 'train':
+            os.removedirs(output_path)
 
 
