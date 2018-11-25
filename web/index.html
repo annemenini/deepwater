@@ -9,6 +9,13 @@ html, body {
 canvas {
     width: 100%;
 }
+
+.demos {
+    width: 400px;
+}
+.demos img, .demos canvas {
+    width: 100%;
+}
 </style>
 
 <head>
@@ -19,6 +26,10 @@ canvas {
 </head>
 
 <body id='dropbox'>
+    <div class="demos" id="demos">
+        <img src="demo-pictures/demo2.jpg" id="demo"/>
+    </div>
+
     <div id="loading">Loading model...</div>
 
     <div id='main' style='display:none'>

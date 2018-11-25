@@ -1,4 +1,11 @@
 import * as tf from '@tensorflow/tfjs';
+import {loadFrozenModel} from '@tensorflow/tfjs-converter';
+
+const MODEL_URL = 'https://storage.googleapis.com/deepwater/model/v1/tensorflowjs_model.pb';
+const WEIGHTS_URL = 'https://storage.googleapis.com/deepwater/model/v1/weights_manifest.json';
+
+const INPUT_NODE_NAME = 'degraded';
+const OUTPUT_NODE_NAME = 'final_output';
 
 function handleFiles(files) {
   for (let i = 0; i < files.length; i++) {
@@ -24,6 +31,7 @@ function drawImage(img) {
   let output = document.getElementById("output");
 
   let canvas = document.createElement("canvas");
+  canvas.className = "input-preview";
   canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
   canvas.getContext('2d').drawImage(img, 0, 0);
@@ -31,10 +39,35 @@ function drawImage(img) {
   output.append(canvas);
 }
 
-export async function bindPage() {
+async function loadModel() { 
+  console.log('model: loading');
+  const model = await loadFrozenModel(MODEL_URL, WEIGHTS_URL);
+  console.log('model: loaded');
+
   document.getElementById('loading').style.display = 'none';
   document.getElementById('main').style.display = 'block';
 
+  // TODO apply to all input
+  //const input = document.querySelector(".input-preview");
+  const demo = document.getElementById('demo');
+  const demoFloat32 = tf.fromPixels(demo).asType('float32');
+  console.log('model: executing');
+  let result = model.execute({[INPUT_NODE_NAME]: demoFloat32}, OUTPUT_NODE_NAME);
+  // result is a 4
+  console.log('model: executed');
+
+  let output = document.getElementById("demos");
+  let canvas = document.createElement("canvas");
+  canvas.width = demo.naturalWidth;
+  canvas.height = demo.naturalHeight;
+
+  tf.toPixels(result.asType('int32').squeeze(), canvas);
+  output.append(canvas);
+
+  console.log("now what?");
+}
+
+export async function bindPage() {
   let inputElement = document.getElementById("input");
   inputElement.addEventListener("change", function() {handleFiles(this.files)}, false);
 
@@ -55,3 +88,4 @@ export async function bindPage() {
 }
 
 bindPage();
+loadModel();
