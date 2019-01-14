@@ -31,3 +31,17 @@ Then run the following to convert to a format that can be loaded by TensorFlowJS
 ```
     tensorflowjs_converter --input_format=tf_saved_model --output_node_names='final_output'     $TOPDIR/model/savedmodel $TOPDIR/model/web
 ```
+
+## Configuration
+
+There are 2 ways to tune the default coniguration: via command line options and via .json config file.
+
+For each option, if it is not tuned by command line nor by the json config file, then the default value defined in configuration.py will be used. 
+
+Therefore the json config file is optional.
+
+If an option is tuned via both program option and json, the value defined in the json configuration file will be used.
+
+An example of json file is provided in configuration_template.json.
+
+To pass a configuration via json file, use the command line option `--config_file my_config.json`. Note that the config is expected to be found in the input folder which can be specified by the command line option `--input_path /my/input/path`.
