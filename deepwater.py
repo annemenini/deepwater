@@ -162,7 +162,7 @@ def fcnn(input_image):
     tf.summary.scalar('contrast', layer[0, 2])
 
     # Red saturation
-    output_image_r = (layer[:, 0]) * input_image[:, :, :, 0]
+    output_image_r = (1 + layer[:, 0]) * input_image[:, :, :, 0]
     output_image_g = input_image[:, :, :, 1]
     output_image_b = input_image[:, :, :, 2]
     output_image_r = tf.expand_dims(output_image_r, axis=3)
@@ -174,7 +174,7 @@ def fcnn(input_image):
     output_image = output_image - (layer[:, 1])
 
     # Contrast
-    output_image = 0.5 + (layer[:, 2]) * (output_image - 0.5)
+    output_image = 0.5 + (1 + layer[:, 2]) * (output_image - 0.5)
 
     return output_image
 
@@ -283,10 +283,7 @@ def train(enhancer):
     validation_dataset = get_dataset(mode='validation')
     eval_result = enhancer.evaluate(input_fn=lambda: input_fn(validation_dataset))
 
-    saved_model_path = os.path.join(FLAGS.output_path, 'saved_model')
-    if not os.path.exists(saved_model_path):
-        os.makedirs(saved_model_path)
-    enhancer.export_saved_model(saved_model_path, serving_input_receiver_fn)
+    enhancer.export_saved_model(FLAGS.output_path, serving_input_receiver_fn)
 
     return eval_result
 

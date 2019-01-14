@@ -1,0 +1,23 @@
+{
+  "mode": "train",
+  "use_tfrecords": true,
+  "input_path": "input",
+  "config_file": "configuration.json",
+  "database_source_path": "data_source",
+  "database_path": "data",
+  "output_path": "output",
+  "shuffle": true,
+  "num_threads": 1,
+  "batchsize": 1,
+  "num_epochs": 512,
+  "learning_rate": 0.00001,
+  "brightness_offset_min": 0,
+  "brightness_offset_max": 14,
+  "desaturate_red_min": 1,
+  "desaturate_red_max": 2.2,
+  "contrast_min": 1,
+  "contrast_max": 2.2,
+  "resize_with_fixed_size": false,
+  "resize_min": 256,
+  "resize_max": 1024
+}

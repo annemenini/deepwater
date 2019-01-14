@@ -17,7 +17,7 @@ flags.DEFINE_string(name='mode',
 
 
 flags.DEFINE_bool(name='use_tfrecords',
-                  default=False,
+                  default=True,
                   help='If true, use tfrecords inputs, if false, use images')
 flags.DEFINE_string(name='input_path',
                     default='input',
@@ -31,12 +31,12 @@ flags.DEFINE_string(name='config_file',
 flags.DEFINE_string(name='database_source_path',
                     default='database\\source',
                     help='Location of the source images (e.g. .png, .jpg)')
-# flags.DEFINE_string(name='database_path',
-#                     default='\\Users\\stere\\Documents\\deepwater\\database\\tfrecords',
-#                     help='Location of the database (.tfrecords)')
 flags.DEFINE_string(name='database_path',
-                    default='\\Users\\stere\\Documents\\deepwater\\database\\source\\good',
-                    help='Location of the database (.jpeg, .jpg, .png, )')
+                    default='\\Users\\stere\\Documents\\deepwater\\database\\tfrecords',
+                    help='Location of the database (.tfrecords)')
+# flags.DEFINE_string(name='database_path',
+#                     default='\\Users\\stere\\Documents\\deepwater\\database\\source\\good',
+#                     help='Location of the database (.jpeg, .jpg, .png, )')
 
 # Outputs
 
@@ -59,7 +59,7 @@ flags.DEFINE_integer(name='batchsize',
                      default=1,
                      help='Batch size')
 flags.DEFINE_integer(name='num_epochs',
-                     default=32,
+                     default=512,
                      help='Number of epochs')
 flags.DEFINE_float(name='learning_rate',
                    default=0.00001,
@@ -69,21 +69,21 @@ flags.DEFINE_float(name='learning_rate',
 # Data augmentation
 
 flags.DEFINE_float(name='brightness_offset_min',
-                   default=5,
+                   default=0,
                    help='Minimum value for brightness offset')
 flags.DEFINE_float(name='brightness_offset_max',
                    default=14,
                    help='Maximum value for brightness offset')
 
 flags.DEFINE_float(name='desaturate_red_min',
-                   default=1.8,
+                   default=1,
                    help='Minimum value to divide red channel')
 flags.DEFINE_float(name='desaturate_red_max',
                    default=2.2,
                    help='Maximum value to divide red channel')
 
 flags.DEFINE_float(name='contrast_min',
-                   default=1.8,
+                   default=1,
                    help='Minimum value of contrast reduction')
 flags.DEFINE_float(name='contrast_max',
                    default=2.2,
