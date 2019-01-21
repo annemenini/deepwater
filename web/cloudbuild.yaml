@@ -1,7 +1,10 @@
 steps:
 - name: 'gcr.io/cloud-builders/npm'
   args: [ 'install' ]
+  dir: 'web'
 - name: 'gcr.io/cloud-builders/npm'
   args: [ 'run', 'build' ]
+  dir: 'web'
 - name: 'gcr.io/$PROJECT_ID/firebase'
   args: [ 'deploy', '-P', '$PROJECT_ID', '--token', '$_FIREBASE_TOKEN']
+  dir: 'web'
