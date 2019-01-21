@@ -8,7 +8,9 @@ It allows users to uplaod their own photos to be enhanced with the deepwater mod
 
 This web app depends on the trained model being publicly available at a given URL. To learn how to generate the web model, see the [main README](../README.ms#converting-the-model-for-the-web).
 
-For example, you can host the web model in a piublic [Google Cloud Storage](https://cloud.google.com/storage/) bucket.
+For example, you can host the web model in a piblic [Google Cloud Storage](https://cloud.google.com/storage/) bucket. Copy your local files to the bucket with: 
+
+    gsutil cp model/web/* gs://deepwater/model/v1
 
 Update `config.js` with your own base URL and model version number.  
 

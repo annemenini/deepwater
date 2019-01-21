@@ -37,7 +37,11 @@ Train the model, then copy the `.pb` and `variables` folder containing your mode
 
 Then run the following to convert to a format that can be loaded by TensorFlowJS:
 
-    tensorflowjs_converter --input_format=tf_saved_model --output_node_names='final_output'     $TOPDIR/model/savedmodel $TOPDIR/model/web
+    tensorflowjs_converter \
+        --input_format=tf_saved_model \
+        --output_node_names='final_output' \
+        $TOPDIR/model/savedmodel \
+        $TOPDIR/model/web
 
 The output files is what you need to serve publicly to use the web viewer. See [`README` file in the `web` folder](web/README.md) to read more about the web viewer.
 
@@ -68,13 +72,13 @@ gcloud ml-engine local train \
 ```
 ### Cloud training (from the root of the repo):
 Create bucket:
-```
-gsutil mb -l us-central1 gs://deepwater-project-mlengine
-```
+
+    gsutil mb -l us-central1 gs://deepwater-project-mlengine
+
 Upload tfrecords:
-```
-cp -r database/tfrecords gs://deepwater-project-mlengine/data
-```
+
+    gsutil cp -r database/tfrecords gs://deepwater-project-mlengine/data
+
 Run training:
 ```
 gcloud ml-engine jobs submit training deepwater_single_4 \
