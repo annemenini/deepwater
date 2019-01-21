@@ -2,7 +2,7 @@
 Deep-learning based enhancer for underwater pictures
 
 ## High level APIs
-* Generate a database based on standard format pictures: 
+* Generate a tfrecords database based on standard format pictures: 
 ```
     python generate_database.py \
     --database_source_path $TOPDIR/database/source \
@@ -16,6 +16,7 @@ Deep-learning based enhancer for underwater pictures
     --output_path $TOPDIR/output --mode train
 ```
 * Process new images: 
+For the prediction, the cases are expected to be found in a folder ```predict``` in the ```database_path```
 ```
     python deepwater.py \
     --input_path $TOPDIR/input \
@@ -24,6 +25,7 @@ Deep-learning based enhancer for underwater pictures
     --mode predict
 ```
 
+If instead of tfrecords one wants to process data in standard image format (.png, .jpg, .webp), just use the flag ```--use_tfrecords=False```
 
 ## Database
 ### Generate the training database

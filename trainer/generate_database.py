@@ -1,11 +1,10 @@
 import os
 
+import imageio
 import numpy as np
-import scipy
 import tensorflow as tf
 
-import configuration
-
+from trainer import configuration
 
 FLAGS = tf.flags.FLAGS
 
@@ -17,16 +16,16 @@ def parse_database():
         os.makedirs(tfrecords_path)
 
     expected_types = ['train', 'validation', 'test']
-    supported_extensions = ['.jpeg', '.jpg', '.png']
+    supported_extensions = ['.jpeg', '.jpg', '.png', '.webp']
 
     case_list = []
 
-    for type in os.listdir(source_path):
-        type_input_path = os.path.join(source_path, type)
+    for set_type in os.listdir(source_path):
+        type_input_path = os.path.join(source_path, set_type)
         is_dir = os.path.isdir(type_input_path)
-        is_expected_type = (type in expected_types)
+        is_expected_type = (set_type in expected_types)
         if is_dir and is_expected_type:
-            type_output_path = os.path.join(tfrecords_path, type)
+            type_output_path = os.path.join(tfrecords_path, set_type)
             if not os.path.exists(type_output_path):
                 os.makedirs(type_output_path)
 
@@ -53,7 +52,7 @@ def generate_tfrecords(case_list):
     for case in case_list:
         source_path = case[0]
         tfrecords_path = case[1]
-        image = scipy.misc.imread(source_path)
+        image = imageio.imread(source_path)
         image = image.astype(np.float32)
         print('maxi:')
         print(np.max(image))
@@ -70,7 +69,7 @@ def generate_tfrecords(case_list):
         tf_writer.close()
 
 
-def main(argv=None):
+def main(_):
     configuration.customize_configuration()
     case_list = parse_database()
     generate_tfrecords(case_list)

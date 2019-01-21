@@ -1,0 +1,4 @@
+# Requirements for deepwater.
+imageio
+numpy
+tensorflow==1.12
