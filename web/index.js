@@ -39,41 +39,41 @@ function processFile(url) {
   img.src = url;
 }
 
-function drawImage(img) {
-  console.log("drawing input");
-  let output = document.getElementById("output");
-
+function getCanvasOfImgSize(img) {
   let canvas = document.createElement("canvas");
-  canvas.className = "input-preview";
   canvas.width = img.naturalWidth;
   canvas.height = img.naturalHeight;
-  canvas.getContext('2d').drawImage(img, 0, 0);
-
-  output.append(canvas);
+  return canvas;
 }
 
-function drawResult(originalImage, result) {
-  console.log("drawing result");
-  const output = document.getElementById("output");
-  const canvas = document.createElement("canvas");
-  canvas.className = "result-preview";
-  canvas.width = originalImage.naturalWidth;
-  canvas.height = originalImage.naturalHeight;
+function imgToCanvas(img) {
+  let canvas = getCanvasOfImgSize(img);
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  return canvas;
+}
 
-  tf.toPixels(result.asType('int32').squeeze(), canvas);
-
+function appendCanvas(canvas) {
+  let output = document.getElementById("output");
   output.append(canvas);
 }
 
 function processImg(img) {
-  drawImage(img);
+  // we copy into a canvas because https://github.com/tensorflow/tfjs/issues/1111
+  let canvasInput = imgToCanvas(img);
+  canvasInput.className = "input-preview";
+  appendCanvas(canvasInput);
 
-  const demoFloat32 = tf.fromPixels(img).asType('float32');
+  const demoFloat32 = tf.fromPixels(canvasInput).asType('float32');
   console.log('model: executing');
   let result = model.execute({[INPUT_NODE_NAME]: demoFloat32}, OUTPUT_NODE_NAME);
   console.log('model: executed');
 
-  drawResult(img, result);
+  let canvasResult = getCanvasOfImgSize(img);
+  canvasResult.className = "result-preview";
+
+  tf.toPixels(result.asType('int32').squeeze([0]), canvasResult);
+
+  appendCanvas(canvasResult);
 }
 
 export async function bindPage() {
