@@ -1,8 +1,7 @@
 import * as tf from '@tensorflow/tfjs';
 import {loadFrozenModel} from '@tensorflow/tfjs-converter';
 
-const MODEL_URL = 'https://storage.googleapis.com/deepwater/model/v1/tensorflowjs_model.pb';
-const WEIGHTS_URL = 'https://storage.googleapis.com/deepwater/model/v1/weights_manifest.json';
+import {modelURL, weightsURL} from './config.js'
 
 const INPUT_NODE_NAME = 'degraded';
 const OUTPUT_NODE_NAME = 'final_output';
@@ -41,7 +40,7 @@ function drawImage(img) {
 
 async function loadModel() { 
   console.log('model: loading');
-  const model = await loadFrozenModel(MODEL_URL, WEIGHTS_URL);
+  const model = await loadFrozenModel(modelURL, weightsURL);
   console.log('model: loaded');
 
   document.getElementById('loading').style.display = 'none';

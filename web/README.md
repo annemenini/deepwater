@@ -10,6 +10,7 @@ This web app depends on the trained model being publicly available at a given UR
 
 For example, you can host the web model in a piublic [Google Cloud Storage](https://cloud.google.com/storage/) bucket.
 
+Update `config.js` with your own base URL and model version number.  
 
 ## Develop
 
