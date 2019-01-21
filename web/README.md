@@ -22,4 +22,17 @@ Start a local server with `npm run watch`
 
 ## Deploy
 
-Build the production webapp with `npm run build`
+Build the production webapp with `npm run build`, then host the built file on a static file hosting service.
+
+## Continuous deployment to Firebase hosting
+
+This repo is configured to automatically be deployed to a [Firebase Hosting](https://firebase.google.com/docs/hosting/) static website on every change.
+
+To do this, we use [Google Cloud Build](https://cloud.google.com/cloud-build/) to trigger a build every time a new change is pushed to the `web` folder of this repo.
+
+You need to build a custom `firebase` builder, to do this, follow the instructions under the ["Firebase" tab here](https://cloud.google.com/cloud-build/docs/configuring-builds/build-test-deploy-artifacts#deploying_artifacts).
+
+The actions to perform on deployment are specified in the `cloudbuild.yaml` file.
+
+To continuously deploy to Firebase Hosting, we created a [Cloud Build trigger](https://cloud.google.com/cloud-build/docs/running-builds/automate-builds) that executes on every file change in the `web/` folder of this repository.
+When creating this trigger, we set the [substitution value](https://cloud.google.com/cloud-build/docs/configuring-builds/substitute-variable-values) `_FIREBASE_TOKEN` with the token that we got when running `firebase login:ci`.
