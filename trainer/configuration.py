@@ -30,13 +30,10 @@ flags.DEFINE_string(name='config_file',
 
 flags.DEFINE_string(name='database_source_path',
                     default='database\\source',
-                    help='Location of the source images (e.g. .png, .jpg)')
+                    help='Location of the source images (e.g. .png, .jpg) to create the tfrecords')
 flags.DEFINE_string(name='database_path',
                     default='\\Users\\stere\\Documents\\deepwater\\database\\tfrecords',
-                    help='Location of the database (.tfrecords)')
-# flags.DEFINE_string(name='database_path',
-#                     default='\\Users\\stere\\Documents\\deepwater\\database\\source\\good',
-#                     help='Location of the database (.jpeg, .jpg, .png, )')
+                    help='Location of the database (.tfrecords or .jpeg, .jpg, .png, .webp)')
 
 # Outputs
 
@@ -55,31 +52,31 @@ flags.DEFINE_integer(name='num_threads',
 
 # Training hyper-parameters
 
-flags.DEFINE_integer(name='batchsize',
+flags.DEFINE_integer(name='batch_size',
                      default=1,
                      help='Batch size')
 flags.DEFINE_integer(name='num_epochs',
-                     default=512,
+                     default=1024,
                      help='Number of epochs')
 flags.DEFINE_float(name='learning_rate',
-                   default=0.00001,
+                   default=0.0001,
                    help='Learning rate')
 
 
 # Data augmentation
 
 flags.DEFINE_float(name='brightness_offset_min',
-                   default=0,
+                   default=-16,
                    help='Minimum value for brightness offset')
 flags.DEFINE_float(name='brightness_offset_max',
-                   default=14,
+                   default=16,
                    help='Maximum value for brightness offset')
 
 flags.DEFINE_float(name='desaturate_red_min',
                    default=1,
                    help='Minimum value to divide red channel')
 flags.DEFINE_float(name='desaturate_red_max',
-                   default=2.2,
+                   default=4,
                    help='Maximum value to divide red channel')
 
 flags.DEFINE_float(name='contrast_min',
@@ -89,6 +86,9 @@ flags.DEFINE_float(name='contrast_max',
                    default=2.2,
                    help='Maximum value of contrast reduction')
 
+flags.DEFINE_bool(name='resize',
+                  default=True,
+                  help='Resize images before processing')
 flags.DEFINE_bool(name='resize_with_fixed_size',
                   default=False,
                   help='Use a fixed resizing size (of size resize_max)')
@@ -119,13 +119,3 @@ def customize_configuration():
         print('Warning, the configuration file provided is invalid:')
         print('\t' + str(exc))
         print('The CLI/default configurations will be used.')
-
-    output_path = FLAGS.output_path
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
-    else:
-        print(FLAGS.mode)
-        if FLAGS.mode == 'train':
-            os.removedirs(output_path)
-
-

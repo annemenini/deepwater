@@ -1,18 +1,20 @@
 import os
 
-import scipy
+import imageio
+import numpy as np
 import tensorflow as tf
 
-import unet.unet_nn
-
-import configuration
-
+from trainer import configuration
 
 FLAGS = tf.flags.FLAGS
 
 
 def resize(image, reference):
-    if FLAGS.resize_with_fixed_size:
+    if not FLAGS.resize:
+        shape = tf.shape(image)
+        dim_x1 = shape[0]
+        dim_y1 = shape[1]
+    elif FLAGS.resize_with_fixed_size:
         dim_x1 = FLAGS.resize_max
         dim_y1 = FLAGS.resize_max
     else:
@@ -62,7 +64,7 @@ feature_spec = {'dim_x': tf.FixedLenFeature([], tf.int64),
                 'reference': tf.FixedLenFeature([], tf.string)}
 
 
-def process_tfrecords(case):
+def process_tfrecords(case, mode='train'):
     # features = tf.parse_single_example(case, features=feature_spec)
     case = tf.expand_dims(case, axis=0)
     features = tf.parse_example(case, features=feature_spec)
@@ -81,7 +83,8 @@ def process_tfrecords(case):
 
     image, reference = resize(image, reference)
 
-    image = augment(image)
+    if not mode == 'predict':
+        image = augment(image)
 
     feature = {"degraded": image}
     label = reference
@@ -89,13 +92,14 @@ def process_tfrecords(case):
     return feature, label
 
 
-def process_images(case):
+def process_images(case, mode):
     image_string = tf.read_file(case)
     image = tf.image.decode_jpeg(image_string, channels=3)
 
     reference = image
     image, reference = resize(image, reference)
-    image = augment(image)
+    if not mode == 'predict':
+        image = augment(image)
     feature = {"degraded": image}
     label = reference
     return feature, label
@@ -112,16 +116,16 @@ def get_dataset(mode='train'):
         pattern = os.path.join(mode_path, '*.tfrecords')
         case_list = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
         dataset = tf.data.TFRecordDataset(case_list)
-        dataset = dataset.map(process_tfrecords, num_parallel_calls=FLAGS.num_threads)
+        dataset = dataset.map(lambda case: process_tfrecords(case, mode), num_parallel_calls=FLAGS.num_threads)
     else:
         pattern = os.path.join(mode_path, '*.*')
         dataset = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
-        dataset = dataset.map(process_images, num_parallel_calls=FLAGS.num_threads)
+        dataset = dataset.map(lambda case: process_images(case, mode), num_parallel_calls=FLAGS.num_threads)
     dataset.batch(FLAGS.batchsize)
     if mode == 'train':
         repeat = 1
     else:
-        # TODO: Understand why the eval only appear towards the end only every 3000 subrun
+        # TODO: Understand why the eval only appears towards the end only every 3000 subrun
         repeat = int(39 / 9)
     if FLAGS.mode == 'train':
         dataset = dataset.repeat(FLAGS.num_epochs * repeat)
@@ -137,8 +141,8 @@ def input_fn(dataset):
 
 
 def fcnn(input_image):
-    """
-    Fully Connected Neural Network
+    """Fully Connected Neural Network
+
     Assumes an input image of shape [N, 64, 64, 3]
     """
 
@@ -171,7 +175,7 @@ def fcnn(input_image):
     output_image = tf.concat([output_image_r, output_image_g, output_image_b], axis=3)
 
     # Brightness
-    output_image = output_image - (layer[:, 1])
+    output_image = output_image - layer[:, 1]
 
     # Contrast
     output_image = 0.5 + (1 + layer[:, 2]) * (output_image - 0.5)
@@ -203,7 +207,6 @@ def model_fn(features, labels, mode, params=None, config=None):
     input_image = features['degraded']
 
     input_image1 = tf.divide(input_image, 255.0)
-    # input_image1 = input_image * 1.0e5
 
     input_image1 = tf.expand_dims(input_image1, axis=0)
 
@@ -214,7 +217,6 @@ def model_fn(features, labels, mode, params=None, config=None):
     #                 summaries=True)
 
     output_image = tf.multiply(output_image, 255.0)
-    # input_image = input_image / 1.0e5
 
     output_image = tf.minimum(output_image, 255)
     output_image = tf.maximum(output_image, 0, name="final_output")
@@ -239,7 +241,7 @@ def model_fn(features, labels, mode, params=None, config=None):
 
     optimizer = tf.train.AdagradOptimizer(learning_rate=FLAGS.learning_rate)
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
-    export_outputs={'output': output_image}
+    export_outputs = {'output': output_image}
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, export_outputs=export_outputs)
 
 
@@ -248,9 +250,9 @@ def serving_input_receiver_fn():
                                            name='input_example_tensor')
     receiver_tensors = {'examples': serialized_tf_example}
     if FLAGS.use_tfrecords:
-        features, _ = process_tfrecords(serialized_tf_example)
+        features, _ = process_tfrecords(serialized_tf_example, 'predict')
     else:
-        features, _ = process_images(serialized_tf_example)
+        features, _ = process_images(serialized_tf_example, 'predict')
     return tf.estimator.export.ServingInputReceiver(features, receiver_tensors)
 
 
@@ -279,7 +281,7 @@ def train(enhancer):
     train_dataset = get_dataset(mode='train')
     enhancer.train(input_fn=lambda: input_fn(train_dataset))
 
-    # Evaluate the model.
+    # Evaluate the model on validation dataset
     validation_dataset = get_dataset(mode='validation')
     eval_result = enhancer.evaluate(input_fn=lambda: input_fn(validation_dataset))
 
@@ -290,22 +292,31 @@ def train(enhancer):
 
 def test(enhancer):
 
-    # Test
+    # Test, i.e. evaluate model on test dataset
     test_dataset = get_dataset(mode='test')
     test_result = enhancer.evaluate(input_fn=lambda: input_fn(test_dataset))
 
     return test_result
 
 
+def save_prediction(predictions):
+    prediction_path = os.path.join(FLAGS.output_path, 'predict')
+    if not os.path.exists(prediction_path):
+        os.makedirs(prediction_path)
+    outputs = [p["output"] for p in predictions]
+    for index, output in enumerate(outputs):
+        item_path = os.path.join(prediction_path, str(index) + '.png')
+        imageio.imwrite(item_path, output.astype(np.uint8))
+
+
 def predict(enhancer):
-    # Test
-    prediction_dataset = get_dataset(mode='prediction')
-    output = enhancer.predict(input_fn=lambda: input_fn(prediction_dataset))
+    # Predict
+    prediction_dataset = get_dataset(mode='predict')
+    predictions = enhancer.predict(input_fn=lambda: input_fn(prediction_dataset))
+    save_prediction(predictions)
 
-    # TODO save output
 
-
-def main(argv=None):
+def main(_):
     configuration.customize_configuration()
 
     my_feature_columns = [tf.feature_column.numeric_column(key='input')]
