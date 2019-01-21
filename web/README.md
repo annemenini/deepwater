@@ -6,7 +6,7 @@ It allows users to uplaod their own photos to be enhanced with the deepwater mod
 
 ## Prerequisites
 
-This web app depends on the trained model being publicly available at a given URL. To learn how to generate the web model, see the [main README](../README.ms#converting-the-model-for-the-web).
+This web app depends on the trained model being publicly available at a given URL. To learn how to generate the web model, see the [main README](../README.md#converting-the-model-for-the-web).
 
 For example, you can host the web model in a piblic [Google Cloud Storage](https://cloud.google.com/storage/) bucket. Copy your local files to the bucket with: 
 
