@@ -5,16 +5,24 @@
 html, body {
     height: 100%
 }
-
-canvas {
-    width: 100%;
+html {
+    font-family: sans-serif;
 }
-
+.container {
+    max-width: 600px;
+    margin: auto;
+}
 .demos {
     width: 400px;
 }
-.demos img, .demos canvas {
+.demos .demo {
+    width: 200px;
+}
+.output {
     width: 100%;
+}
+.output .result-preview, .output .input-preview {
+    width: 50%;
 }
 </style>
 
@@ -26,18 +34,22 @@ canvas {
 </head>
 
 <body id='dropbox'>
-    <div class="demos" id="demos">
-        <img src="demo-pictures/demo2.jpg" id="demo"/>
+    <div class="container">
+
+        <label for="input">Select one or more pictures</label>
+        <input type="file" id="input" multiple accept="image/*">
+
+        <p>or use one of these examples:</p>
+        <div class="demos">
+            <img src="demo-pictures/demo2.jpg" id="demo" class="demo"/>
+        </div>
+
+        <button id="run-example">Run this example</button>
+
+        <div id="loading" style="display:none">Loading model...</div>
+
+        <div id="output" class="output"></div>
     </div>
-
-    <button id="run-example">Run example</button>
-
-    <div id="loading" style="display:none">Loading model...</div>
-
-    <label for="input">Select a picture</label>
-    <input type="file" id="input" multiple accept="image/*">
-
-    <div id="output"></div>
 
     <script src="index.js"></script>
 </body>
