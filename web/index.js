@@ -93,11 +93,12 @@ function processImg(img) {
 }
 
 export async function bindPage() {
-  const loadButton = document.getElementById("run-example");
-  loadButton.addEventListener("click", async () => {
-    await loadModel();
-    processImg(document.getElementById('demo'));
-  }, false);
+  document.querySelectorAll('.demo').forEach((img) => {
+    img.addEventListener("click", async () => {
+      await loadModel();
+      processImg(img);
+    }, false);
+  });
 
   const inputElement = document.getElementById("input");
   inputElement.addEventListener("change", async (event) => {
