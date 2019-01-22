@@ -6,6 +6,8 @@ import {modelURL, weightsURL} from './config.js'
 const INPUT_NODE_NAME = 'degraded';
 const OUTPUT_NODE_NAME = 'final_output';
 
+const MAX_IMAGE_SIZE = 1024;
+
 let model;
 
 async function loadModel() {
@@ -39,17 +41,31 @@ function processFile(url) {
   img.src = url;
 }
 
-function getCanvasOfImgSize(img) {
+
+function getNewCanvasFromImage(img) {
   let canvas = document.createElement("canvas");
-  canvas.width = img.naturalWidth;
-  canvas.height = img.naturalHeight;
+
+  if(img.naturalWidth > MAX_IMAGE_SIZE) {
+    canvas.width = MAX_IMAGE_SIZE;
+    canvas.height = img.naturalHeight * MAX_IMAGE_SIZE / img.naturalWidth;
+  } else if(img.naturalHeight > MAX_IMAGE_SIZE) {
+    canvas.width = img.naturalWidth * MAX_IMAGE_SIZE / img.naturalHeight;
+    canvas.height = MAX_IMAGE_SIZE;
+  } else {
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+  }
+
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+
   return canvas;
 }
 
-function imgToCanvas(img) {
-  let canvas = getCanvasOfImgSize(img);
-  canvas.getContext('2d').drawImage(img, 0, 0);
-  return canvas;
+function getNewCanvasFromSize(canvas) {
+  let newCanvas = document.createElement("canvas");
+  newCanvas.width = canvas.width;
+  newCanvas.height = canvas.height;
+  return newCanvas;
 }
 
 function appendCanvas(canvas) {
@@ -59,7 +75,7 @@ function appendCanvas(canvas) {
 
 function processImg(img) {
   // we copy into a canvas because https://github.com/tensorflow/tfjs/issues/1111
-  let canvasInput = imgToCanvas(img);
+  let canvasInput = getNewCanvasFromImage(img);
   canvasInput.className = "input-preview";
   appendCanvas(canvasInput);
 
@@ -68,7 +84,7 @@ function processImg(img) {
   let result = model.execute({[INPUT_NODE_NAME]: demoFloat32}, OUTPUT_NODE_NAME);
   console.log('model: executed');
 
-  let canvasResult = getCanvasOfImgSize(img);
+  let canvasResult = getNewCanvasFromSize(canvasInput)
   canvasResult.className = "result-preview";
 
   tf.toPixels(result.asType('int32').squeeze([0]), canvasResult);
