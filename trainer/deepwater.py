@@ -12,15 +12,15 @@ FLAGS = tf.flags.FLAGS
 def resize(image, reference):
     if not FLAGS.resize:
         shape = tf.shape(image)
-        dim_x1 = shape[0]
-        dim_y1 = shape[1]
+        dim_x1 = shape[1]
+        dim_y1 = shape[2]
     elif FLAGS.resize_with_fixed_size:
         dim_x1 = FLAGS.resize_max
         dim_y1 = FLAGS.resize_max
     else:
         shape = tf.shape(image)
         dim_x1 = tf.cast(8 * tf.round(tf.random_uniform([], FLAGS.resize_min, FLAGS.resize_max) / 8), dtype=tf.int32)
-        dim_y1 = tf.cast(8 * tf.round((shape[1] * dim_x1 / shape[0]) / 8), dtype=tf.int32)
+        dim_y1 = tf.cast(8 * tf.round((shape[2] * dim_x1 / shape[1]) / 8), dtype=tf.int32)
     image = tf.image.resize_images(image, [dim_x1, dim_y1])
     reference = tf.image.resize_images(reference, [dim_x1, dim_y1])
     return image, reference
@@ -42,16 +42,17 @@ def change_brightness(image):
 
 def desaturate_red(image):
     shape = tf.shape(image)
-    red = tf.slice(image, begin=[0, 0, 0], size=[shape[0], shape[1], 1])
-    green = tf.slice(image, begin=[0, 0, 1], size=[shape[0], shape[1], 1])
-    blue = tf.slice(image, begin=[0, 0, 2], size=[shape[0], shape[1], 1])
+    red = tf.slice(image, begin=[0, 0, 0, 0], size=[shape[0], shape[1], shape[2], 1])
+    green = tf.slice(image, begin=[0, 0, 0, 1], size=[shape[0], shape[1], shape[2], 1])
+    blue = tf.slice(image, begin=[0, 0, 0, 2], size=[shape[0], shape[1], shape[2], 1])
     ratio = tf.random_uniform([], FLAGS.desaturate_red_min, FLAGS.desaturate_red_max, dtype=tf.float32)
     red /= ratio
-    image = tf.concat([red, green, blue], axis=2)
+    image = tf.concat([red, green, blue], axis=3)
     return image
 
 
 def augment(image):
+    # TODO: should the data augmentation be different for each element of the batch? It is right the same now.
     image = reduce_contrast(image)
     image = change_brightness(image)
     image = desaturate_red(image)
@@ -65,18 +66,21 @@ feature_spec = {'dim_x': tf.FixedLenFeature([], tf.int64),
 
 
 def process_tfrecords(case, mode='train'):
-    # features = tf.parse_single_example(case, features=feature_spec)
-    case = tf.expand_dims(case, axis=0)
-    features = tf.parse_example(case, features=feature_spec)
-
+    features = tf.parse_single_example(case, features=feature_spec)
     dim_x = tf.cast(features['dim_x'], dtype=tf.int32)
-    dim_x = tf.squeeze(dim_x, axis=0)  # TODO remove when batchsize > 1
     dim_y = tf.cast(features['dim_y'], dtype=tf.int32)
-    dim_y = tf.squeeze(dim_y, axis=0)  # TODO remove when batchsize > 1
-    shape = [dim_x, dim_y, 3]
 
+    # case = tf.expand_dims(case, axis=0)
+    # features = tf.parse_example(case, features=feature_spec)
+    #
+    # # The different elements of the batch must have consistent size
+    # dim_x = tf.cast(features['dim_x'], dtype=tf.int32)
+    # dim_x = tf.reshape(dim_x, [-1])[0]
+    # dim_y = tf.cast(features['dim_y'], dtype=tf.int32)
+    # dim_y = tf.reshape(dim_y, [-1])[0]
+
+    shape = [-1, dim_x, dim_y, 3]
     record_bytes = tf.decode_raw(features['input'], tf.float32)
-    record_bytes = tf.squeeze(record_bytes, axis=0)  # TODO remove when batchsize > 1
     image = tf.reshape(record_bytes, shape)
     record_bytes = tf.decode_raw(features['reference'], tf.float32)
     reference = tf.reshape(record_bytes, shape)
@@ -95,6 +99,8 @@ def process_tfrecords(case, mode='train'):
 def process_images(case, mode):
     image_string = tf.read_file(case)
     image = tf.image.decode_jpeg(image_string, channels=3)
+    shape = tf.shape(image)
+    image = tf.reshape(image, [-1, shape[0], shape[1], shape[2]])
 
     reference = image
     image, reference = resize(image, reference)
@@ -121,7 +127,7 @@ def get_dataset(mode='train'):
         pattern = os.path.join(mode_path, '*.*')
         dataset = tf.data.Dataset.list_files(pattern, shuffle=FLAGS.shuffle)
         dataset = dataset.map(lambda case: process_images(case, mode), num_parallel_calls=FLAGS.num_threads)
-    dataset.batch(FLAGS.batchsize)
+    dataset.batch(FLAGS.batch_size)
     if mode == 'train':
         repeat = 1
     else:
@@ -148,9 +154,7 @@ def fcnn(input_image):
 
     input_image1 = tf.image.resize_images(input_image, [64, 64])
 
-    shape = tf.shape(input_image1)
-    units0 = shape[1] * shape[2] * shape[3]  # 64 * 64 * 3 = 12288
-    input_image1 = tf.reshape(input_image1, [shape[0], units0])
+    input_image1 = tf.reshape(input_image1, [-1, 64 * 64 * 3])
 
     layer = tf.layers.dense(inputs=input_image1, units=1536, activation=tf.nn.relu)
     layer = tf.layers.dense(inputs=layer, units=768, activation=tf.nn.relu)
@@ -202,13 +206,9 @@ def loss_fn(image, reference):
 
 def model_fn(features, labels, mode, params=None, config=None):
 
-    # TODO: Support batch size > 1
-
     input_image = features['degraded']
 
     input_image1 = tf.divide(input_image, 255.0)
-
-    input_image1 = tf.expand_dims(input_image1, axis=0)
 
     output_image = fcnn(input_image1)
     # output_image = cnn(input_image1)
@@ -230,7 +230,7 @@ def model_fn(features, labels, mode, params=None, config=None):
     loss = loss_fn(output_image, labels)
 
     # Compute evaluation metrics.
-    concat = tf.concat([tf.expand_dims(input_image, axis=0), output_image, tf.expand_dims(labels, axis=0)], axis=1)
+    concat = tf.concat([input_image, output_image, labels], axis=1)
     tf.summary.image('concat', concat)
 
     if mode == tf.estimator.ModeKeys.EVAL:
@@ -270,7 +270,7 @@ def train_and_evaluate(enhancer):
     # enhancer.export_savedmodel(saved_model_path, serving_input_receiver_fn)
     enhancer.export_saved_model(saved_model_path, tf.estimator.export.build_raw_serving_input_receiver_fn(
         features={'degraded': tf.placeholder(dtype=tf.float32,
-                                             shape=[None, None, 3],
+                                             shape=[None, None, None, 3],
                                              name='degraded')}))
 
     return eval_result
@@ -303,10 +303,12 @@ def save_prediction(predictions):
     prediction_path = os.path.join(FLAGS.output_path, 'predict')
     if not os.path.exists(prediction_path):
         os.makedirs(prediction_path)
+    # TODO: Change so that the prediction are done progressively and not stored together
     outputs = [p["output"] for p in predictions]
     for index, output in enumerate(outputs):
+        # TODO: Not clear why the batch dimension disappear in predict mode??
         item_path = os.path.join(prediction_path, str(index) + '.png')
-        imageio.imwrite(item_path, output.astype(np.uint8))
+        imageio.imwrite(item_path, np.squeeze(output).astype(np.uint8))
 
 
 def predict(enhancer):

@@ -107,7 +107,10 @@ def customize_configuration():
     config_file = FLAGS.config_file
     config_path = os.path.join(input_path, config_file)
 
-    try:
+    if not os.path.exists(config_path):
+        print('Warning, no configuration file found.')
+        print('The CLI/default configurations will be used.')
+    else:
         with open(config_path, 'r') as json_file:
             data = json.load(json_file)
             for key in FLAGS.flag_values_dict():
@@ -115,7 +118,3 @@ def customize_configuration():
                     FLAGS.key = data[key]
                 else:
                     print('Key ' + key + ' not found. Using default value ' + FLAGS.key)
-    except Exception as exc:
-        print('Warning, the configuration file provided is invalid:')
-        print('\t' + str(exc))
-        print('The CLI/default configurations will be used.')
