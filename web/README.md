@@ -1,6 +1,6 @@
 # Web viewer for deepwater
 
-This is a sinple web viewer for the [deepwater project](https://github.com/annemenini/deepwater).
+This is a sinple web viewer for the [deepwater project](https://github.com/annemenini/deepwater). Currently available at https://deepwater-project.web.app
 
 It allows users to uplaod their own photos to be enhanced with the deepwater model running in the browser with TensorflowJS.
 
